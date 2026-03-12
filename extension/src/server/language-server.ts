@@ -1,6 +1,7 @@
 import { LanguageClient, State } from 'vscode-languageclient/node'
 import { window, workspace } from 'vscode'
 import * as path from 'path'
+import * as fs from 'fs'
 import * as os from 'os'
 import { Settings } from '../settings/settings'
 import { exec } from 'child_process'
@@ -9,10 +10,12 @@ import { BehaviorSubject, Subscription, filter, firstValueFrom, skip } from 'rxj
 import { envVars } from '../utils/shell/env-vars'
 import { CliProvider } from '../flow-cli/cli-provider'
 import { KNOWN_FLOW_COMMANDS } from '../flow-cli/cli-versions-provider'
+import { resolveBundledLspBinary } from './bundled-lsp'
 
 export class LanguageServerAPI {
   #settings: Settings
   #cliProvider: CliProvider
+  #extensionPath: string
   client: LanguageClient | null = null
 
   clientState$ = new BehaviorSubject<State>(State.Stopped)
@@ -20,9 +23,10 @@ export class LanguageServerAPI {
 
   #isActive = false
 
-  constructor (settings: Settings, cliProvider: CliProvider) {
+  constructor (settings: Settings, cliProvider: CliProvider, extensionPath: string) {
     this.#settings = settings
     this.#cliProvider = cliProvider
+    this.#extensionPath = extensionPath
   }
 
   // Activates the language server manager
@@ -77,16 +81,20 @@ export class LanguageServerAPI {
       let serverOptions: { command: string, args: string[], options: { env: typeof env } }
 
       if (settings.lspMode === 'lsp-v2') {
-        // Use standalone LSP v2 binary
-        const lspBinary = settings.lspBinaryPath?.trim() || 'lsp-v2'
-        const resolvedBinary = this.#resolvePath(lspBinary) || lspBinary
+        const { command, source } = await this.#resolveLspV2Command()
 
         const rootDir = workspace.workspaceFolders?.[0]?.uri.fsPath ?? ''
         const args = ['--root-dir', rootDir]
 
+        if (source === 'flow-cli-fallback') {
+          void window.showWarningMessage('Bundled Cadence LSP v2 was not available for this platform. Falling back to Flow CLI language server.')
+        }
+
         serverOptions = {
-          command: resolvedBinary,
-          args,
+          command,
+          args: source === 'flow-cli-fallback'
+            ? ['cadence', 'language-server', '--enable-flow-client=false']
+            : args,
           options: { env }
         }
       } else {
@@ -193,6 +201,37 @@ export class LanguageServerAPI {
     })
   }
 
+  async #resolveLspV2Command (): Promise<{ command: string, source: 'bundled' | 'path' | 'flow-cli-fallback' }> {
+    const configuredBinary = this.#settings.getSettings().lspBinaryPath?.trim() ?? ''
+    if (configuredBinary !== '') {
+      const resolvedBinary = this.#resolvePath(configuredBinary) || configuredBinary
+      return { command: resolvedBinary, source: 'path' }
+    }
+
+    const bundledBinary = await resolveBundledLspBinary(this.#extensionPath)
+    if (bundledBinary != null) {
+      return { command: bundledBinary.path, source: bundledBinary.source }
+    }
+
+    return await this.#resolveFallbackCommand()
+  }
+
+  async #resolveFallbackCommand (): Promise<{ command: string, source: 'path' | 'flow-cli-fallback' }> {
+    const lspBinaryOnPath = this.#findCommandOnPath('lsp-v2')
+    if (lspBinaryOnPath != null) {
+      return { command: lspBinaryOnPath, source: 'path' }
+    }
+
+    const binaryPath = (await this.#cliProvider.getCurrentBinary())?.command
+    if (binaryPath == null) {
+      throw new Error(
+        'No bundled Cadence LSP v2 binary was found for this platform. Configure cadence.lspBinaryPath or install Flow CLI to use the fallback language server.'
+      )
+    }
+
+    return { command: binaryPath, source: 'flow-cli-fallback' }
+  }
+
   // TODO: add this feature to the Cadence language server to remove the need for this method
   #resolvePath (input: string): string {
     const value = input?.trim() ?? ''
@@ -215,5 +254,26 @@ export class LanguageServerAPI {
       return path.resolve(folders[0].uri.fsPath, expanded)
     }
     return path.resolve(expanded)
+  }
+
+  #findCommandOnPath (command: string): string | null {
+    const pathEnv = process.env.PATH ?? ''
+    if (pathEnv === '') return null
+
+    const extensions = process.platform === 'win32'
+      ? ['.exe', '.cmd', '.bat', '']
+      : ['']
+
+    for (const entry of pathEnv.split(path.delimiter)) {
+      if (entry.trim() === '') continue
+      for (const extension of extensions) {
+        const candidate = path.join(entry, `${command}${extension}`)
+        if (fs.existsSync(candidate)) {
+          return candidate
+        }
+      }
+    }
+
+    return null
   }
 }

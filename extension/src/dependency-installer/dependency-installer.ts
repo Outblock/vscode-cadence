@@ -5,17 +5,17 @@ import { promptUserErrorMessage } from '../ui/prompts'
 import { StateCache } from '../utils/state-cache'
 import { LanguageServerAPI } from '../server/language-server'
 import { CliProvider } from '../flow-cli/cli-provider'
-
-const INSTALLERS: InstallerConstructor[] = [
-  InstallFlowCLI
-]
+import { Settings } from '../settings/settings'
 
 export class DependencyInstaller {
   registeredInstallers: Installer[] = []
   missingDependencies: StateCache<Installer[]>
   #installerContext: InstallerContext
 
-  constructor (languageServerApi: LanguageServerAPI, cliProvider: CliProvider) {
+  #settings: Settings
+
+  constructor (languageServerApi: LanguageServerAPI, cliProvider: CliProvider, settings: Settings) {
+    this.#settings = settings
     this.#installerContext = {
       refreshDependencies: this.checkDependencies.bind(this),
       languageServerApi,
@@ -28,12 +28,18 @@ export class DependencyInstaller {
     // Create state cache for missing dependencies
     this.missingDependencies = new StateCache(async () => {
       const missing: Installer[] = []
+      const requiredInstallers = this.#getRequiredInstallerNames()
       for (const installer of this.registeredInstallers) {
+        if (!requiredInstallers.has(installer.getName())) continue
         if (!(await installer.verifyInstall())) {
           missing.push(installer)
         }
       }
       return missing
+    })
+
+    this.#settings.watch$((config) => [config.lspMode, config.flowCommand]).subscribe(() => {
+      this.missingDependencies.invalidate()
     })
 
     // Display error message if dependencies are missing
@@ -76,7 +82,7 @@ export class DependencyInstaller {
         registerInstallers.bind(this)(installer.dependencies)
         this.registeredInstallers.push(installer)
       })
-    }).bind(this)(INSTALLERS)
+    }).bind(this)([InstallFlowCLI])
   }
 
   async #installMissingDependencies (): Promise<void> {
@@ -127,5 +133,14 @@ export class DependencyInstaller {
         void window.showInformationMessage('All dependencies installed successfully.  You may need to restart active terminals.')
       }
     }
+  }
+
+  #getRequiredInstallerNames (): Set<string> {
+    const config = this.#settings.getSettings()
+    if (config.lspMode === 'flow-cli') {
+      return new Set(['Flow CLI'])
+    }
+
+    return new Set()
   }
 }

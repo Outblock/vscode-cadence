@@ -1,3 +1,9 @@
+## Unreleased
+
+### Changed
+- Bundle and prefer Cadence LSP v2 by default instead of relying on Flow CLI's built-in language server
+- Keep Flow CLI as an explicit compatibility fallback instead of a hard dependency for editor language features
+
 # v1.0.0 (2022-08-16)
 
 ## 🛠 Improvements

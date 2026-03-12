@@ -53,13 +53,13 @@ export class Extension {
     this.#schemaProvider = new JSONSchemaProvider(ctx.extensionPath, cliProvider)
 
     // Initialize Language Server
-    this.languageServer = new LanguageServerAPI(settings, cliProvider)
+    this.languageServer = new LanguageServerAPI(settings, cliProvider, ctx.extensionPath ?? '')
 
     // Check for any missing dependencies
     // The language server will start if all dependencies are installed
     // Otherwise, the language server will not start and will start after
     // the user installs the missing dependencies
-    this.#dependencyInstaller = new DependencyInstaller(this.languageServer, cliProvider)
+    this.#dependencyInstaller = new DependencyInstaller(this.languageServer, cliProvider, settings)
     this.#dependencyInstaller.missingDependencies.subscribe((missing) => {
       if (missing.length === 0) {
         void this.languageServer.activate()

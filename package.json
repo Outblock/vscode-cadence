@@ -3,13 +3,15 @@
 	"displayName": "Cadence (FlowIndex)",
 	"publisher": "FlowIndex",
 	"description": "This extension integrates Cadence, the resource-oriented smart contract programming language of Flow, into Visual Studio Code. Enhanced by Outblock with LSP v2 support.",
-	"version": "3.0.0",
+	"version": "3.1.0",
+	"cadenceToolsRef": "dc78ce7104a73f74929ab2f580726f7700f93ef7",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/Outblock/vscode-cadence.git"
 	},
 	"scripts": {
-		"vscode:prepublish": "npm run -S esbuild-base -- --minify",
+		"vscode:prepublish": "npm run -S prepare:lsp && npm run -S esbuild-base -- --minify",
+		"prepare:lsp": "node ./scripts/build-bundled-lsp.mjs",
 		"esbuild-base": "mkdirp ./out/extension && cp ./node_modules/@onflow/cadence-parser/dist/cadence-parser.wasm ./out/extension && esbuild ./extension/src/main.ts --bundle --outfile=out/extension/src/main.js --external:vscode --format=cjs --platform=node",
 		"esbuild": "npm run -S esbuild-base -- --sourcemap",
 		"esbuild-watch": "npm run -S esbuild-base -- --sourcemap --watch",
@@ -113,11 +115,11 @@
 			"properties": {
 				"cadence.lspMode": {
 					"type": "string",
-					"default": "flow-cli",
+					"default": "lsp-v2",
 					"enum": ["flow-cli", "lsp-v2"],
 					"enumDescriptions": [
-						"Use the Flow CLI's built-in language server (default)",
-						"Use the standalone Cadence LSP v2 binary (faster, more features)"
+						"Use the Flow CLI's built-in language server as a compatibility fallback",
+						"Use the bundled Cadence LSP v2 binary (default, faster, and updated independently from Flow CLI)"
 					],
 					"description": "Which language server to use for Cadence.",
 					"scope": "resource"
@@ -125,13 +127,13 @@
 				"cadence.lspBinaryPath": {
 					"type": "string",
 					"default": "",
-					"description": "Path to the Cadence LSP v2 binary. Required when lspMode is 'lsp-v2'. If empty, will look for 'lsp-v2' in PATH.",
+					"description": "Optional override path to a Cadence LSP v2 binary. If empty, the extension uses the bundled binary first, then PATH, then falls back to Flow CLI when needed.",
 					"scope": "resource"
 				},
 				"cadence.flowCommand": {
 					"type": "string",
 					"default": "flow",
-					"description": "The command to invoke the Flow CLI.",
+					"description": "The command to invoke the Flow CLI for fallback language-server mode and other CLI-dependent features.",
 					"scope": "resource"
 				},
 				"cadence.accessCheckMode": {

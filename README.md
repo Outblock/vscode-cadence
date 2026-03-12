@@ -19,13 +19,13 @@
 #### Install the Cadence extension from the **[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=onflow.cadence)**
 #### The extension is also available on the **[Open VSX Registry](https://open-vsx.org/extension/onflow/cadence)**
 
-Once installed, the extension will help you install other dependencies such as the [Flow CLI](https://docs.onflow.org/flow-cli/install/).
+Once installed, the extension uses the bundled Cadence LSP v2 by default. The [Flow CLI](https://docs.onflow.org/flow-cli/install/) is still useful for debugging and CLI-driven workflows, but it is no longer required just to get language features.
 
 ## Features
 
 #### Cadence Language Server
 
-The Cadence extension provides a language server for Cadence. The language server is responsible for providing language features like code completion, diagnostics, and more.  It is packaged within the Flow CLI and is managed by the extension.
+The Cadence extension provides a language server for Cadence. The language server is responsible for providing language features like code completion, diagnostics, and more. The default server is the bundled Cadence LSP v2, managed independently from Flow CLI so editor improvements can ship faster.
 
 ### Debugging
 Use the debugger build into VSCode on Cadence files by creating a launch.json file. Make sure to have an emulator connected to enable debugging. 

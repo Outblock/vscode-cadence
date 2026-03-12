@@ -5,12 +5,67 @@ on:
     types: [ published ]
 
 jobs:
+  build-lsp-binaries:
+    name: Build LSP Binary (${{ matrix.platform-id }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform-id: darwin-arm64
+            runner: macos-14
+            platform: darwin
+            arch: arm64
+          - platform-id: darwin-x64
+            runner: macos-13
+            platform: darwin
+            arch: x64
+          - platform-id: linux-x64
+            runner: ubuntu-latest
+            platform: linux
+            arch: x64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+
+      - name: Use Go 1.25.x
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.25.x
+
+      - name: Build bundled LSP binary
+        run: node ./scripts/build-bundled-lsp.mjs
+        env:
+          CADENCE_LSP_OUTPUT_ROOT: ./lsp-artifacts
+          CADENCE_LSP_PLATFORM: ${{ matrix.platform }}
+          CADENCE_LSP_ARCH: ${{ matrix.arch }}
+
+      - name: Upload bundled LSP binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: lsp-${{ matrix.platform-id }}
+          path: lsp-artifacts/**
+          if-no-files-found: error
+
   publish-extension:
     name: "Publish Extension"
+    needs: build-lsp-binaries
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Download bundled LSP binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: lsp-*
+          path: out/extension/bin
+          merge-multiple: true
 
       - name: Use Node.js 22.x
         uses: actions/setup-node@v6

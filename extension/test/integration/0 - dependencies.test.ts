@@ -16,12 +16,13 @@ suite('Dependency Installer', () => {
   })
 
   test('Install Missing Dependencies', async () => {
+    const settings = getMockSettings({ lspMode: 'flow-cli' })
     const mockLanguageServerApi = {
       activate: stub(),
       deactivate: stub(),
       isActive: true
     }
-    const dependencyManager = new DependencyInstaller(mockLanguageServerApi as any, cliProvider)
+    const dependencyManager = new DependencyInstaller(mockLanguageServerApi as any, cliProvider, settings)
     await dependencyManager.installMissing()
     await new Promise<void>(resolve => setTimeout(resolve, 1000))
     // Check that all dependencies are installed

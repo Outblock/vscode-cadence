@@ -31,7 +31,7 @@ suite('Language Server & Emulator Integration', () => {
       getCurrentBinary: sinon.stub().callsFake(async () => cliBinary$.getValue())
     } as any
 
-    LS = new LanguageServerAPI(settings, mockCliProvider)
+    LS = new LanguageServerAPI(settings, mockCliProvider, '')
     // Stub out actual client start to avoid spawning real flow binary on CI
     const fakeClient: any = {
       state: State.Running,
