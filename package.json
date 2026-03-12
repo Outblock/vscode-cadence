@@ -1,7 +1,7 @@
 {
 	"name": "cadence",
 	"displayName": "Cadence",
-	"publisher": "AnyBlock",
+	"publisher": "FlowIndex",
 	"description": "This extension integrates Cadence, the resource-oriented smart contract programming language of Flow, into Visual Studio Code. Enhanced by Outblock with LSP v2 support.",
 	"version": "3.0.0",
 	"repository": {
