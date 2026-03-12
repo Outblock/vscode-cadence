@@ -7,6 +7,8 @@ const CONFIGURATION_KEY = 'cadence'
 
 // Schema for the cadence configuration
 export interface CadenceConfiguration {
+  lspMode: 'flow-cli' | 'lsp-v2'
+  lspBinaryPath: string
   flowCommand: string
   accessCheckMode: string
   customConfigPath: string

@@ -1,12 +1,12 @@
 {
 	"name": "cadence",
 	"displayName": "Cadence",
-	"publisher": "onflow",
-	"description": "This extension integrates Cadence, the resource-oriented smart contract programming language of Flow, into Visual Studio Code.",
-	"version": "2.7.0",
+	"publisher": "AnyBlock",
+	"description": "This extension integrates Cadence, the resource-oriented smart contract programming language of Flow, into Visual Studio Code. Enhanced by Outblock with LSP v2 support.",
+	"version": "3.0.0",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/onflow/vscode-cadence.git"
+		"url": "https://github.com/Outblock/vscode-cadence.git"
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run -S esbuild-base -- --minify",
@@ -111,6 +111,23 @@
 		"configuration": {
 			"title": "Cadence",
 			"properties": {
+				"cadence.lspMode": {
+					"type": "string",
+					"default": "flow-cli",
+					"enum": ["flow-cli", "lsp-v2"],
+					"enumDescriptions": [
+						"Use the Flow CLI's built-in language server (default)",
+						"Use the standalone Cadence LSP v2 binary (faster, more features)"
+					],
+					"description": "Which language server to use for Cadence.",
+					"scope": "resource"
+				},
+				"cadence.lspBinaryPath": {
+					"type": "string",
+					"default": "",
+					"description": "Path to the Cadence LSP v2 binary. Required when lspMode is 'lsp-v2'. If empty, will look for 'lsp-v2' in PATH.",
+					"scope": "resource"
+				},
 				"cadence.flowCommand": {
 					"type": "string",
 					"default": "flow",

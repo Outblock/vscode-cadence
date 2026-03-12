@@ -7,6 +7,8 @@ export function getMockSettings (_settings$: BehaviorSubject<Partial<CadenceConf
 
   function buildConfig (partial?: Partial<CadenceConfiguration>): CadenceConfiguration {
     return {
+      lspMode: partial?.lspMode ?? 'flow-cli',
+      lspBinaryPath: partial?.lspBinaryPath ?? '',
       flowCommand: partial?.flowCommand ?? 'flow',
       accessCheckMode: partial?.accessCheckMode ?? 'strict',
       customConfigPath: partial?.customConfigPath ?? '',

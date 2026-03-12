@@ -68,32 +68,51 @@ export class LanguageServerAPI {
       // Set client state to starting
       this.clientState$.next(State.Starting)
 
-      const accessCheckMode: string = this.#settings.getSettings().accessCheckMode
-
-      const binaryPath = (await this.#cliProvider.getCurrentBinary())?.command
-      if (binaryPath == null) {
-        throw new Error('No flow binary found')
-      }
-
-      if (binaryPath !== KNOWN_FLOW_COMMANDS.DEFAULT) {
-        try {
-          exec('killall dlv') // Required when running language server locally on mac
-        } catch (err) { void err }
-      }
-
+      const settings = this.#settings.getSettings()
+      const accessCheckMode: string = settings.accessCheckMode
       const env = await envVars.getValue()
       const rawConfigPath = workspace.getConfiguration('cadence').get<string>('customConfigPath') ?? ''
       const configPath = this.#resolvePath(rawConfigPath)
+
+      let serverOptions: { command: string, args: string[], options: { env: typeof env } }
+
+      if (settings.lspMode === 'lsp-v2') {
+        // Use standalone LSP v2 binary
+        const lspBinary = settings.lspBinaryPath?.trim() || 'lsp-v2'
+        const resolvedBinary = this.#resolvePath(lspBinary) || lspBinary
+
+        const rootDir = workspace.workspaceFolders?.[0]?.uri.fsPath ?? ''
+        const args = ['--root-dir', rootDir]
+
+        serverOptions = {
+          command: resolvedBinary,
+          args,
+          options: { env }
+        }
+      } else {
+        // Use Flow CLI's built-in language server (default)
+        const binaryPath = (await this.#cliProvider.getCurrentBinary())?.command
+        if (binaryPath == null) {
+          throw new Error('No flow binary found')
+        }
+
+        if (binaryPath !== KNOWN_FLOW_COMMANDS.DEFAULT) {
+          try {
+            exec('killall dlv') // Required when running language server locally on mac
+          } catch (err) { void err }
+        }
+
+        serverOptions = {
+          command: binaryPath,
+          args: ['cadence', 'language-server', '--enable-flow-client=false'],
+          options: { env }
+        }
+      }
+
       this.client = new LanguageClient(
         'cadence',
         'Cadence',
-        {
-          command: binaryPath,
-          args: ['cadence', 'language-server', '--enable-flow-client=false'],
-          options: {
-            env
-          }
-        },
+        serverOptions,
         {
           documentSelector: [{ scheme: 'file', language: 'cadence' }],
           synchronize: {
@@ -134,6 +153,14 @@ export class LanguageServerAPI {
   #subscribeToSettingsChanges (): void {
     // Subscribe to changes in relevant settings to restart the client
     // Skip the first value since we don't want to restart the client when it's first initialized
+    const lspModeSub = this.#settings.watch$((config) => config.lspMode).pipe(skip(1)).subscribe(() => {
+      void this.restart()
+    })
+
+    const lspBinarySub = this.#settings.watch$((config) => config.lspBinaryPath).pipe(skip(1)).subscribe(() => {
+      void this.restart()
+    })
+
     const flowCmdSub = this.#settings.watch$((config) => config.flowCommand).pipe(skip(1)).subscribe(() => {
       void this.restart()
     })
@@ -146,7 +173,7 @@ export class LanguageServerAPI {
       void this.restart()
     })
 
-    this.#subscriptions.push(flowCmdSub, customConfigSub, accessModeSub)
+    this.#subscriptions.push(lspModeSub, lspBinarySub, flowCmdSub, customConfigSub, accessModeSub)
   }
 
   #subscribeToBinaryChanges (): void {
